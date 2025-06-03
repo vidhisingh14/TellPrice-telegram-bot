@@ -97,13 +97,17 @@ const CryptoDashboard = () => {
   return (
     <div className="crypto-dashboard">
       <header className="dashboard-header">
-        <div className="header-left">
-          <div className="logo">🚀</div>
-          <h1 className="title">Crypto Price Tracker</h1>
-        </div>
-        <div className={`status-badge ${connectionStatus}`}>
-          <div className="status-dot"></div>
-          <span className="status-text">{connectionStatus}</span>
+        <div className="header-content">
+          <div className="header-left">
+            <div className="rocket-icon">🚀</div>
+            <div className="title-container">
+              <h1 className="title">Crypto Price Tracker</h1>
+            </div>
+          </div>
+          <div className={`status-badge ${connectionStatus}`}>
+            <div className="status-dot"></div>
+            <span className="status-text">{connectionStatus}</span>
+          </div>
         </div>
       </header>
 
