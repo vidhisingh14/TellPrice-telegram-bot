@@ -8,4 +8,3 @@ pydantic==2.5.0
 
 
 
-kaise gyaa? ye toh nhi jaat ah n? woww, lol chlo ye repository delet krte h, or naya bnate h
