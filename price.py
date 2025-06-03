@@ -32,7 +32,7 @@ app.add_middleware(
 # Configuration
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
 CRYPTO_IDS = ["bitcoin", "ethereum", "solana"]
-UPDATE_INTERVAL = 40  # seconds
+UPDATE_INTERVAL = 60  # Increased to 60 seconds to reduce rate limiting
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
@@ -97,7 +97,13 @@ class CryptoPriceFetcher:
                 "include_last_updated_at": "true"
             }
             
-            async with self.session.get(COINGECKO_API_URL, params=params) as response:
+            # Add headers to avoid rate limiting
+            headers = {
+                "User-Agent": "CryptoPriceTracker/1.0",
+                "Accept": "application/json"
+            }
+            
+            async with self.session.get(COINGECKO_API_URL, params=params, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
                     
@@ -120,6 +126,10 @@ class CryptoPriceFetcher:
                     
                     self.last_prices = formatted_data
                     return formatted_data
+                elif response.status == 429:
+                    logger.warning("Rate limited by CoinGecko API, using cached data")
+                    await asyncio.sleep(10)  # Wait 10 seconds before next attempt
+                    return self.last_prices or {"error": "Rate limited, no cached data available"}
                 else:
                     logger.error(f"CoinGecko API error: {response.status}")
                     return self.last_prices or {"error": "Failed to fetch prices"}
@@ -174,16 +184,32 @@ async def send_telegram_update(price_data: Dict[str, Any]):
 
 async def price_update_loop():
     """Background task to fetch prices and broadcast updates"""
+    retry_count = 0
+    max_retries = 3
+    
     while True:
         try:
             # Fetch latest prices
             price_data = await price_fetcher.fetch_prices()
             
+            # Check if we got valid data
+            if "error" in price_data and "rate limited" in price_data["error"].lower():
+                retry_count += 1
+                if retry_count <= max_retries:
+                    logger.warning(f"Rate limited, retry {retry_count}/{max_retries}")
+                    await asyncio.sleep(30)  # Wait 30 seconds before retry
+                    continue
+                else:
+                    logger.error("Max retries reached, using cached data")
+                    retry_count = 0
+            else:
+                retry_count = 0  # Reset on successful fetch
+            
             # Broadcast to WebSocket connections
             await manager.broadcast(price_data)
             
-            # Send to Telegram
-            if "error" not in price_data:
+            # Send to Telegram only if we have valid data
+            if "error" not in price_data and price_data.get("prices"):
                 await send_telegram_update(price_data)
             
             logger.info(f"Price update sent at {datetime.now()}")
@@ -225,6 +251,20 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
+
+@app.get("/")
+async def root():
+    """Root endpoint for health checks"""
+    return {
+        "message": "Crypto Price Tracker API",
+        "status": "running",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "websocket": "/ws/crypto-prices",
+            "prices": "/api/prices", 
+            "health": "/api/health"
+        }
+    }
 
 @app.get("/api/prices")
 async def get_current_prices():
