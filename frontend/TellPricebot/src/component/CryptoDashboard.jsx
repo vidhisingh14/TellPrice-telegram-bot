@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './CryptoDashboard.css'; // We'll create this CSS file
+import './CryptoDashboard.css';
 
 const CryptoDashboard = () => {
   const [prices, setPrices] = useState({});
-  const [connectionStatus, setConnectionStatus] = useState('Disconnected');
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [lastUpdate, setLastUpdate] = useState(null);
   const [error, setError] = useState(null);
   const wsRef = useRef(null);
@@ -27,7 +27,7 @@ const CryptoDashboard = () => {
       
       wsRef.current.onopen = () => {
         console.log('WebSocket connected');
-        setConnectionStatus('Connected');
+        setConnectionStatus('connected');
         setError(null);
       };
 
@@ -49,7 +49,7 @@ const CryptoDashboard = () => {
 
       wsRef.current.onclose = (event) => {
         console.log('WebSocket disconnected:', event.code, event.reason);
-        setConnectionStatus('Disconnected');
+        setConnectionStatus('disconnected');
         
         // Attempt to reconnect after 5 seconds
         setTimeout(() => {
@@ -61,7 +61,7 @@ const CryptoDashboard = () => {
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
-        setConnectionStatus('Error');
+        setConnectionStatus('error');
         setError('WebSocket connection error');
       };
 
@@ -85,10 +85,6 @@ const CryptoDashboard = () => {
     return `${sign}${change.toFixed(2)}%`;
   };
 
-  const getChangeClass = (change) => {
-    return change >= 0 ? 'positive' : 'negative';
-  };
-
   const getCryptoIcon = (cryptoId) => {
     const icons = {
       bitcoin: '₿',
@@ -101,62 +97,74 @@ const CryptoDashboard = () => {
   return (
     <div className="crypto-dashboard">
       <header className="dashboard-header">
-        <h1>🚀 Crypto Price Tracker</h1>
-        <div className="connection-status">
-          <span className={`status-indicator ${connectionStatus.toLowerCase()}`}></span>
-          <span>{connectionStatus}</span>
+        <div className="header-left">
+          <div className="logo">🚀</div>
+          <h1 className="title">Crypto Price Tracker</h1>
+        </div>
+        <div className={`status-badge ${connectionStatus}`}>
+          <div className="status-dot"></div>
+          <span className="status-text">{connectionStatus}</span>
         </div>
       </header>
 
       {error && (
         <div className="error-message">
-          ⚠️ {error}
+          <span className="error-icon">⚠️</span>
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="prices-container">
-        {Object.keys(prices).length === 0 ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading crypto prices...</p>
-          </div>
-        ) : (
-          <div className="price-grid">
-            {Object.entries(prices).map(([cryptoId, data]) => (
-              <div key={cryptoId} className="price-card">
-                <div className="crypto-header">
-                  <div className="crypto-icon">{getCryptoIcon(cryptoId)}</div>
-                  <div className="crypto-info">
-                    <h3>{data.name}</h3>
-                    <span className="symbol">{data.symbol}</span>
-                  </div>
-                </div>
-                
-                <div className="price-info">
-                  <div className="current-price">
-                    {formatPrice(data.price)}
-                  </div>
-                  
-                  <div className={`price-change ${getChangeClass(data.change_24h)}`}>
-                    <span className="change-arrow">
-                      {data.change_24h >= 0 ? '↗' : '↘'}
-                    </span>
-                    {formatChange(data.change_24h)}
-                  </div>
-                </div>
-                
-                <div className="additional-info">
-                  <small>24h Change</small>
+      {Object.keys(prices).length === 0 ? (
+        <div className="loading-grid">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="loading-card">
+              <div className="shimmer"></div>
+              <div className="loading-header">
+                <div className="loading-icon"></div>
+                <div className="loading-info">
+                  <div className="loading-name"></div>
+                  <div className="loading-symbol"></div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="loading-price"></div>
+              <div className="loading-change"></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid-container">
+          {Object.entries(prices).map(([cryptoId, data]) => (
+            <div key={cryptoId} className={`crypto-card ${cryptoId}`}>
+              <div className="card-header">
+                <div className={`crypto-icon-container ${cryptoId}`}>
+                  <span className="crypto-icon">{getCryptoIcon(cryptoId)}</span>
+                </div>
+                <div className="crypto-info">
+                  <h3 className="crypto-name">{data.name}</h3>
+                  <span className="crypto-symbol">{data.symbol}</span>
+                </div>
+              </div>
+              
+              <div className="price-info">
+                <p className="price">{formatPrice(data.price)}</p>
+                
+                <div className={`change-container ${data.change_24h >= 0 ? 'positive' : 'negative'}`}>
+                  <span className="change-arrow">
+                    {data.change_24h >= 0 ? '↗' : '↘'}
+                  </span>
+                  <span className="change-value">{formatChange(data.change_24h)}</span>
+                </div>
+                
+                <div className="change-label">24h Change</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {lastUpdate && (
-        <div className="last-update">
-          <p>Last updated: {lastUpdate.toLocaleString()}</p>
+        <div className="footer">
+          <p className="last-update">Last updated: {lastUpdate.toLocaleString()}</p>
           <p className="next-update">Next update in ~60 seconds</p>
         </div>
       )}
